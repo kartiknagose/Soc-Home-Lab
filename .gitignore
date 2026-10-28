@@ -1,0 +1,14 @@
+# Secrets, keys, passwords — never commit these
+*.pem
+*.key
+wazuh-passwords.txt
+*password*
+*.env
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+*.swp

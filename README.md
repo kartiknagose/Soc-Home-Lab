@@ -29,7 +29,7 @@ A hands-on lab where I attack my own systems from Parrot OS and detect, triage a
 | # | Technique | ATT&CK | Detected | Writeup |
 |---|---|---|---|---|
 | 1 | SSH brute force | T1110, T1110.001 | ✅ Yes (rules 5710, 5712, 40112) | [writeup](attack-detect-writeups/01-ssh-brute-force-T1110.md) |
-| 2 | Network service scan | T1046 | TBD | TBD |
+| 2 | Network service scan | T1046 | ⚠️ Partial (visibility gap documented) | [writeup](attack-detect-writeups/02-network-scan-T1046.md) |
 
 ## Repo layout
 

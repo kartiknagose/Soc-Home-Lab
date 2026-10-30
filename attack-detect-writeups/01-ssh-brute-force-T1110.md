@@ -100,6 +100,14 @@ early indicator that an attacker is probing the host.
 - Review all accounts on internet-facing or sensitive hosts for weak
   passwords using the same method (lab-only, with authorization).
 
+## Evidence
+
+![Rule 40112 detail view](../screenshots/01-rule40112-detail.png)
+*Full detail of rule 40112 — MITRE tactic/technique fields, rule level, GDPR/PCI/HIPAA mapping.*
+
+![Rules 5710/5712 event list](../screenshots/01-rule5710-5712-list.png)
+*Event list showing repeated rule 5710 (non-existent user) hits alongside rule 40112 for comparison.*
+
 ## Tuning/hardening notes
 
 - Rule 5712 aggregates multiple 5710 events (`frequency: 8`) into one

@@ -30,7 +30,7 @@ A hands-on lab where I attack my own systems from Parrot OS and detect, triage a
 |---|---|---|---|---|
 | 1 | SSH brute force | T1110, T1110.001 | ✅ Yes (rules 5710, 5712, 40112) | [writeup](attack-detect-writeups/01-ssh-brute-force-T1110.md) |
 | 2 | Network service scan | T1046 | ⚠️ Partial (visibility gap documented) | [writeup](attack-detect-writeups/02-network-scan-T1046.md) |
-| 3 | Local account persistence + privilege escalation | T1136.001, T1098.007 | ✅ Yes (rules 5901, 5902, custom rule 100100) | [writeup](attack-detect-writeups/03-local-account-persistence-T1136.md) |
+| 3 | Local account persistence + privilege escalation | T1136.001, T1098 | ✅ Yes (rules 5901, 5902, custom rule 100100) | [writeup](attack-detect-writeups/03-local-account-persistence-T1136.md) |
 
 ## Repo layout
 
@@ -45,7 +45,7 @@ screenshots/             alert evidence
 
 | Rule ID | Description | MITRE | Used in |
 |---|---|---|---|
-| [100100](detection-rules/100100-sudo-group-privilege-escalation.xml) | User added to sudo group - privilege escalation | T1098.007 | [writeup #3](attack-detect-writeups/03-local-account-persistence-T1136.md) |
+| [100100](detection-rules/100100-sudo-group-privilege-escalation.xml) | User added to sudo group - privilege escalation | T1098 | [writeup #3](attack-detect-writeups/03-local-account-persistence-T1136.md) |
 
 ## Scope and safety
 

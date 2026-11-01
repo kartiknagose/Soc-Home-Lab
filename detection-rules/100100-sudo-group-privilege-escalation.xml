@@ -13,6 +13,15 @@
   (not the agent) inside an existing <group>...</group> block, then
   `sudo systemctl restart wazuh-manager`.
 
+  MITRE ID note: the technically most accurate sub-technique is
+  T1098.007 ("Additional Local or Domain Groups"), but this Wazuh
+  install's local MITRE database (v4.14.8) does not include that
+  sub-technique yet — using it produces
+  "WARNING: Mitre Technique ID 'T1098.007' not found in database" and
+  the alert ships with no MITRE tag at all. Fell back to the parent
+  technique T1098 ("Account Manipulation"), which IS in the local
+  database and still correctly describes the action.
+
   Verified with wazuh-logtest against:
     usermod[4186]: add 'svc-backup' to group 'sudo'
   and confirmed live via a real usermod execution on the agent.
@@ -22,7 +31,7 @@
   <match>to group 'sudo'</match>
   <description>User added to sudo group - privilege escalation</description>
   <mitre>
-    <id>T1098.007</id>
+    <id>T1098</id>
   </mitre>
   <group>privilege_escalation,local,</group>
 </rule>

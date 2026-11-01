@@ -74,7 +74,7 @@ triplet rather than one clean "modified" event.
 | 550 | 7 | Integrity checksum changed (FIM) | `/etc/passwd`, `/etc/shadow`, `/etc/group` content changes | — |
 | 553 | 7 | File deleted (FIM) | atomic rename artifact (see above) | — |
 | 554 | 5 | File added to the system (FIM) | atomic rename artifact (see above) | — |
-| **100100 (custom)** | **12** | **User added to sudo group - privilege escalation** | `usermod -aG sudo svc-backup` | **T1098.007** |
+| **100100 (custom)** | **12** | **User added to sudo group - privilege escalation** | `usermod -aG sudo svc-backup` | **T1098** |
 
 Before rule 100100 was added, **the `usermod -aG sudo` step — the actual
 privilege escalation — produced no semantic alert at all.** It only showed
@@ -109,6 +109,14 @@ in routine-looking FIM noise.
 - Periodically audit `/etc/group` and `/etc/passwd` for accounts outside
   of an approved baseline, not just rely on real-time alerts.
 
+## Evidence
+
+![wazuh-logtest validating rule 100100](../screenshots/03-rule100100-logtest.png)
+*`wazuh-logtest` confirming the custom rule matches the real `usermod` log line before deployment — id 100100, level 12, groups including `privilege_escalation`.*
+
+![Rule 100100 alert document detail](../screenshots/03-rule100100-detail.png)
+*Live alert fired by rule 100100 in the dashboard. `rule.mitre.id` still shows `T1098.003` here because this alert was captured before the MITRE tag correction described below — kept as "before" evidence of the fix.*
+
 ## Detection engineering: closing the gap
 
 Rather than just documenting the gap (as in writeup #2), I wrote and
@@ -130,11 +138,20 @@ Process:
 
 ## Tuning/hardening notes
 
-- **MITRE mapping correction:** the rule was first tagged `T1098.003`
-  ("Additional Cloud Roles") — wrong, since that sub-technique is
-  cloud-IAM-specific. Corrected to `T1098.007` ("Additional Local or
-  Domain Groups"), which matches this exact scenario — adding an account
-  to a privileged local group.
+- **MITRE mapping correction, in two steps:** the rule was first tagged
+  `T1098.003` ("Additional Cloud Roles") — wrong, since that sub-technique
+  is cloud-IAM-specific. The technically correct tag is `T1098.007`
+  ("Additional Local or Domain Groups"), which matches this exact
+  scenario. But setting it to `.007` produced
+  `WARNING: Mitre Technique ID 'T1098.007' not found in database` from
+  `wazuh-logtest` — this Wazuh install's bundled MITRE dataset (v4.14.8)
+  doesn't include that sub-technique yet, so the alert fired with **no**
+  MITRE tag at all. Settled on the parent technique `T1098` ("Account
+  Manipulation"), confirmed in the local database and still an accurate,
+  if less specific, classification. Lesson: a SIEM's MITRE mapping is
+  only as current as its bundled dataset — don't assume every ATT&CK
+  sub-technique is available, verify with `wazuh-logtest` before trusting
+  a tag in production.
 - **Wider takeaway:** a mature SOC can't assume a SIEM's default ruleset
   covers every critical system change just because *some* related activity
   (account creation) is covered. Coverage should be audited action-by-action

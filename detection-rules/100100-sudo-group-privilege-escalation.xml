@@ -1,0 +1,28 @@
+<!--
+  Custom Wazuh detection rule — closes a gap in the default ruleset.
+
+  Finding: the default Wazuh ruleset alerts on local account creation
+  (rules 5901/5902, level 8) but has NO rule for a user being added to a
+  privileged group (e.g. `usermod -aG sudo <user>`) — arguably the more
+  dangerous step, since it grants root-equivalent access. Without this
+  rule, that action only produces a generic FIM "Integrity checksum
+  changed" alert (rule 550, level 7) on /etc/group, indistinguishable
+  from routine config drift.
+
+  Install: place in /var/ossec/etc/rules/local_rules.xml on the MANAGER
+  (not the agent) inside an existing <group>...</group> block, then
+  `sudo systemctl restart wazuh-manager`.
+
+  Verified with wazuh-logtest against:
+    usermod[4186]: add 'svc-backup' to group 'sudo'
+  and confirmed live via a real usermod execution on the agent.
+-->
+<rule id="100100" level="12">
+  <program_name>usermod</program_name>
+  <match>to group 'sudo'</match>
+  <description>User added to sudo group - privilege escalation</description>
+  <mitre>
+    <id>T1098.007</id>
+  </mitre>
+  <group>privilege_escalation,local,</group>
+</rule>

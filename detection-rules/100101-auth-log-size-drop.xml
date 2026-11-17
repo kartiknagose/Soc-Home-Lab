@@ -1,0 +1,40 @@
+<!--
+  Custom Wazuh detection rule — targets log tampering / anti-forensics.
+
+  Finding: the generic FIM rule 550 ("Integrity checksum changed") fires
+  identically whether a monitored file grows or shrinks. A log file that
+  SHRINKS sharply (hundreds of bytes down to a handful) is a strong signal
+  of truncation/tampering, not normal activity — a healthy, active
+  auth.log only ever grows. 550 alone doesn't distinguish the two.
+
+  Design: can't do numeric "before < after" comparisons directly in a
+  Wazuh rule, so this approximates it with digit-count regexes —
+  size_before 3+ digits (>=100 bytes) AND size_after 1-2 digits (<100
+  bytes) = a sharp relative drop, regardless of exact values.
+
+  Prerequisite: /var/log must be added to the agent's <syscheck>
+  directories (realtime="yes") and the default `.log$` ignore pattern in
+  <ignore type="sregex"> removed, otherwise log files are never watched
+  by FIM at all — auth.log is excluded from monitoring by default.
+
+  Install: place in /var/ossec/etc/rules/local_rules.xml on the MANAGER,
+  then `sudo systemctl restart wazuh-manager`.
+
+  Status: deployed and loaded without error (confirmed via the manager's
+  ossec.log and no rule-parsing warnings). A live, moment-of-truncation
+  trigger was not captured during testing in this session due to timing
+  with Wazuh's realtime batching — see writeup #4 for the honest
+  before/after of this attempt. Kept in the repo as a documented,
+  deployed improvement and a known follow-up to re-verify.
+-->
+<rule id="100101" level="12">
+  <if_sid>550</if_sid>
+  <field name="path">/var/log/auth.log</field>
+  <field name="size_before">^\d{3,}$</field>
+  <field name="size_after">^\d{1,2}$</field>
+  <description>auth.log size dropped sharply - possible log tampering</description>
+  <mitre>
+    <id>T1070.002</id>
+  </mitre>
+  <group>log_tampering,defense_evasion,</group>
+</rule>

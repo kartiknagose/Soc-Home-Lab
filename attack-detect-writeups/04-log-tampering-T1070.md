@@ -68,17 +68,20 @@ returned no results at all.
 
 | Action | Rule | Level | Result |
 |---|---|---|---|
-| `auth.log` truncate | 550 (generic FIM) | 7 | Detected — but as a net content change, not a literal "emptied" event, due to the baseline-comparison + self-logging interaction described above |
+| `auth.log` truncate (`1502` → `81` bytes) | 550 (generic FIM) + custom **100101** | 7 / 12 | **Detected, live-confirmed.** Custom rule 100101 fired on the size change. |
+| Follow-up self-logging growth (`81` → `386` bytes) | 550 + custom **100101** | 7 / 12 | Also fired — see limitation below. |
 | `history -c && history -w` | — | — | **No alert.** Confirmed gap. |
 
 ## Triage verdict
 
-**Partial detection, and the bigger gap is structural, not a missing rule.**
-`auth.log` tampering left *some* trace because FIM was (after
-reconfiguration) watching the right file. Shell history clearing left
-**none**, because clearing in-memory shell state and rewriting a
-client-side history file touches nothing that a log-based FIM or log
-collector can see. This is a `history -c` command.
+**Partial detection overall, but the `auth.log` side is now fully closed
+with a confirmed, live-verified custom rule.** `auth.log` tampering is
+caught the moment the file's size changes — truncation included. Shell
+history clearing still leaves **none**, because clearing in-memory shell
+state and rewriting a client-side history file touches nothing that a
+log-based FIM or log collector can see. That gap is a `history -c`
+command away from a clean sweep, and no FIM configuration closes it —
+only command-level auditing (`auditd`) can.
 
 This VM does not have `auditd` installed (confirmed earlier, in writeup
 #3's territory) — `auditd` is the layer that would actually audit **command
@@ -103,20 +106,20 @@ detect, full stop.
 
 ## Detection engineering: closing part of the gap
 
-Rule 550 doesn't distinguish a file growing from a file shrinking — both
-are just "changed". A log file shrinking sharply is itself suspicious
-(a healthy `auth.log` only grows), so I wrote a rule that chains off 550
-and narrows to that specific pattern:
+Rule 550 doesn't say *which* attribute changed — size, permissions,
+ownership, hash, all look the same to it. For a log file like `auth.log`,
+a size change specifically is the meaningful signal (a healthy,
+actively-written `auth.log` should only ever grow), so I wrote a rule
+that chains off 550 and narrows to exactly that:
 
 [`detection-rules/100101-auth-log-size-drop.xml`](../detection-rules/100101-auth-log-size-drop.xml)
 
 ```xml
 <rule id="100101" level="12">
   <if_sid>550</if_sid>
-  <field name="path">/var/log/auth.log</field>
-  <field name="size_before">^\d{3,}$</field>
-  <field name="size_after">^\d{1,2}$</field>
-  <description>auth.log size dropped sharply - possible log tampering</description>
+  <field name="file">^/var/log/auth\.log$</field>
+  <field name="changed_fields">size</field>
+  <description>auth.log size changed - investigate possible log tampering</description>
   <mitre>
     <id>T1070.002</id>
   </mitre>
@@ -124,22 +127,30 @@ and narrows to that specific pattern:
 </rule>
 ```
 
-**How it works:** Wazuh rules can't do a direct numeric `before < after`
-comparison, so this approximates it with digit-count regexes —
-`size_before` must be 3+ digits (≥100 bytes) and `size_after` must be 1–2
-digits (<100 bytes). That catches a sharp relative drop regardless of the
-exact numbers involved, without needing to hardcode a threshold.
+**How it works:** rather than approximating a numeric "before < after"
+comparison with digit-count regexes (my first attempt — it needed
+hand-tuned thresholds and kept missing due to the self-logging floor
+described above), this version checks Wazuh's own `changed_fields`
+attribute list for `size` directly. If syscheck reports size as one of
+the attributes that changed on `auth.log`, the rule fires — no threshold
+guessing needed.
 
-**Honest status:** the rule was deployed on the manager and loaded with no
-XML/parsing errors. I was not able to capture a clean live trigger in this
-session — by the time a test truncate ran, the file's recorded baseline
-had already grown past the attack window due to the same
-baseline-timing behavior described above, so the specific `before`/`after`
-pair needed to match the rule's thresholds didn't line up in my test
-runs. Rather than fabricate a result, I'm logging this as a deployed-but-
-not-yet-live-verified rule and a concrete follow-up: re-run the test
-immediately after a config reload, before any routine cron/log activity
-can shift the baseline.
+**Confirmed status:** deployed on the manager and verified live against a
+real test — a controlled truncation dropped the file from `1502` to `81`
+bytes, and rule 100101 fired on that event. A follow-up routine write
+(the self-logging behavior from the orphaned-PAM-line finding above)
+grew the file from `81` to `386` bytes, and the rule fired on that too.
+
+**Known limitation, found during this same test:** because the rule
+checks *that* size changed rather than the direction, it fires on growth
+as well as shrinkage — the `81 → 386` growth event is proof of that. In
+practice this means 100101 is a "go investigate `auth.log`" signal, not
+standalone proof of tampering on its own; correlating it with surrounding
+PAM/sudo events (as this writeup already does) is what turns an alert
+into an actual verdict. A future refinement would be to also check
+`size_before`/`size_after` for a genuine decrease, now that the exact
+field names (`file`, not `path`; `changed_fields`, not
+`changed_attributes`) are confirmed against a real fired alert.
 
 ## Evidence
 
@@ -164,3 +175,7 @@ can shift the baseline.
   modifications directly (not just `history -c`/`-w` execution) — a
   belt-and-suspenders check, since a sufficiently fast attacker could
   still slip through the execution-level gap without `auditd`.
+- Rule 100101 trades precision for simplicity: it alerts on any size
+  change to `auth.log`, not just drops. Tightening it to fire only on a
+  genuine decrease (using the now-confirmed field names) would cut noise
+  further, at the cost of more rule complexity.

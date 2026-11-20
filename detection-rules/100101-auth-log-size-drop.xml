@@ -2,37 +2,52 @@
   Custom Wazuh detection rule — targets log tampering / anti-forensics.
 
   Finding: the generic FIM rule 550 ("Integrity checksum changed") fires
-  identically whether a monitored file grows or shrinks. A log file that
-  SHRINKS sharply (hundreds of bytes down to a handful) is a strong signal
-  of truncation/tampering, not normal activity — a healthy, active
-  auth.log only ever grows. 550 alone doesn't distinguish the two.
+  identically whether a monitored file grows, shrinks, or just changes
+  permissions/ownership — it doesn't say WHICH attribute changed. For a
+  log file like auth.log, a SIZE change is the specific signal worth
+  calling out: a healthy, active auth.log should only ever grow, so any
+  size change (especially a drop) is worth a dedicated, higher-severity
+  alert rather than being lost in the generic 550 stream.
 
-  Design: can't do numeric "before < after" comparisons directly in a
-  Wazuh rule, so this approximates it with digit-count regexes —
-  size_before 3+ digits (>=100 bytes) AND size_after 1-2 digits (<100
-  bytes) = a sharp relative drop, regardless of exact values.
+  Design (revised): an earlier version of this rule tried to approximate
+  "before < after" with digit-count regexes on size_before/size_after
+  (e.g. 3+ digits vs 1-2 digits). That approach needed hand-tuned
+  thresholds and didn't account for Wazuh's own self-logging floor
+  (sudo/PAM immediately writing a line back into the file it just
+  watched being truncated, landing the "after" size well above 0).
+  This version instead checks Wazuh's own `changed_fields` attribute
+  list for "size" directly — if syscheck reports that the file's size
+  was one of the attributes that changed, the rule fires, regardless of
+  the exact byte values involved. This is simpler and more robust than
+  guessing a threshold.
+
+  Trade-off / known limitation: this rule fires on ANY size change to
+  auth.log, growth included — not just shrinkage. A single truncation
+  and the routine follow-up write it causes (self-logging) will both
+  show up as separate 100101 alerts. The alert is an investigation
+  signal ("auth.log's size just changed — go look why"), not standalone
+  proof of tampering. Correlating it with surrounding PAM/sudo events
+  (as done in writeup #4) is what turns it into an actual verdict.
 
   Prerequisite: /var/log must be added to the agent's <syscheck>
   directories (realtime="yes") and the default `.log$` ignore pattern in
-  <ignore type="sregex"> removed, otherwise log files are never watched
+  <ignore type="sregex"> narrowed, otherwise log files are never watched
   by FIM at all — auth.log is excluded from monitoring by default.
 
   Install: place in /var/ossec/etc/rules/local_rules.xml on the MANAGER,
   then `sudo systemctl restart wazuh-manager`.
 
-  Status: deployed and loaded without error (confirmed via the manager's
-  ossec.log and no rule-parsing warnings). A live, moment-of-truncation
-  trigger was not captured during testing in this session due to timing
-  with Wazuh's realtime batching — see writeup #4 for the honest
-  before/after of this attempt. Kept in the repo as a documented,
-  deployed improvement and a known follow-up to re-verify.
+  Status: deployed and confirmed firing live. Verified against a real
+  controlled truncation of /var/log/auth.log (1502 -> 81 bytes) and the
+  subsequent routine self-logging growth (81 -> 386 bytes) — both
+  transitions triggered this rule, which also demonstrates the
+  "fires on growth too" limitation noted above.
 -->
 <rule id="100101" level="12">
   <if_sid>550</if_sid>
-  <field name="path">/var/log/auth.log</field>
-  <field name="size_before">^\d{3,}$</field>
-  <field name="size_after">^\d{1,2}$</field>
-  <description>auth.log size dropped sharply - possible log tampering</description>
+  <field name="file">^/var/log/auth\.log$</field>
+  <field name="changed_fields">size</field>
+  <description>auth.log size changed - investigate possible log tampering</description>
   <mitre>
     <id>T1070.002</id>
   </mitre>

@@ -2,7 +2,7 @@
 
 A hands-on detection lab where I attack my own systems from Parrot OS, then detect, triage and document each attack in **Wazuh** (SIEM/XDR), mapping every finding to **MITRE ATT&CK**.
 
-**Result so far:** 4 attack-and-detect cycles completed, 2 custom detection rules written and deployed, 2 detection gaps documented with recommended fixes.
+**Result so far:** 4 attack-and-detect cycles completed, 2 custom detection rules written, deployed and live-verified, 2 detection gaps documented with recommended fixes.
 
 ## Architecture
 
@@ -23,7 +23,7 @@ A hands-on detection lab where I attack my own systems from Parrot OS, then dete
 | 1 | SSH brute force | T1110, T1110.001 | Detected. Rules 5710, 5712 and 40112 (level 12, success after failures) fired | [Read](attack-detect-writeups/01-ssh-brute-force-T1110.md) |
 | 2 | Network service scan | T1046 | Partial. Only the `-sV` scan left log traces; SYN and NULL scans were invisible to a host agent (gap documented) | [Read](attack-detect-writeups/02-network-scan-T1046.md) |
 | 3 | Local account persistence and privilege escalation | T1136.001, T1098 | Detected. Rules 5901, 5902 and custom rule 100100 (written by me to close a gap) | [Read](attack-detect-writeups/03-local-account-persistence-T1136.md) |
-| 4 | Log tampering / anti-forensics | T1070.002, T1070.003 | Partial. `auth.log` truncation left a detectable trace; shell history clearing left none (confirmed gap, no `auditd` on this host) | [Read](attack-detect-writeups/04-log-tampering-T1070.md) |
+| 4 | Log tampering / anti-forensics | T1070.002, T1070.003 | Partial. `auth.log` truncation detected live via custom rule 100101; shell history clearing left no trace (confirmed gap, no `auditd` on this host) | [Read](attack-detect-writeups/04-log-tampering-T1070.md) |
 
 ## Key findings
 
@@ -38,7 +38,7 @@ A hands-on detection lab where I attack my own systems from Parrot OS, then dete
 | Rule ID | Description | MITRE | Used in |
 |---|---|---|---|
 | [100100](detection-rules/100100-sudo-group-privilege-escalation.xml) | User added to sudo group (privilege escalation), level 12 | T1098 (T1098.007 is more precise but is not in the Wazuh 4.14.8 MITRE database) | [Writeup 3](attack-detect-writeups/03-local-account-persistence-T1136.md) |
-| [100101](detection-rules/100101-auth-log-size-drop.xml) | `auth.log` size drops sharply (possible log tampering), level 12 | T1070.002 | [Writeup 4](attack-detect-writeups/04-log-tampering-T1070.md) |
+| [100101](detection-rules/100101-auth-log-size-drop.xml) | `auth.log` size changes (possible log tampering), level 12 — live-verified | T1070.002 | [Writeup 4](attack-detect-writeups/04-log-tampering-T1070.md) |
 
 ## Skills demonstrated
 
@@ -57,7 +57,7 @@ screenshots/             alert evidence
 
 - Add a network IDS (Suricata) to detect the port scans that the Wazuh agent cannot see (follow-up from writeup 2).
 - Extend rule 100100 to cover the `wheel` group and use a regex for portability across distributions.
-- Re-verify rule 100101 live (deployed, but not yet confirmed firing end-to-end — see writeup 4's honest status note) and extend it to watch `.bash_history` directly.
+- Tighten rule 100101 to fire only on a size *decrease* (it currently fires on any size change, growth included) and extend it to watch `.bash_history` directly.
 - Install `auditd` to close the confirmed command-level anti-forensics gap (`history -c` and similar).
 
 ## Scope and safety

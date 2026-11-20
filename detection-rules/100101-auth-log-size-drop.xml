@@ -2,32 +2,32 @@
   Custom Wazuh detection rule — targets log tampering / anti-forensics.
 
   Finding: the generic FIM rule 550 ("Integrity checksum changed") fires
-  identically whether a monitored file grows, shrinks, or just changes
-  permissions/ownership — it doesn't say WHICH attribute changed. For a
-  log file like auth.log, a SIZE change is the specific signal worth
-  calling out: a healthy, active auth.log should only ever grow, so any
-  size change (especially a drop) is worth a dedicated, higher-severity
-  alert rather than being lost in the generic 550 stream.
+  identically whether a monitored file grows, shrinks, or just has its
+  content edited. A SIZE change specifically to /var/log/auth.log is
+  the signal worth escalating — a healthy auth.log being tampered with
+  (truncated or rewritten) will show "size" in its changed_attributes.
 
-  Design (revised): an earlier version of this rule tried to approximate
-  "before < after" with digit-count regexes on size_before/size_after
-  (e.g. 3+ digits vs 1-2 digits). That approach needed hand-tuned
-  thresholds and didn't account for Wazuh's own self-logging floor
-  (sudo/PAM immediately writing a line back into the file it just
-  watched being truncated, landing the "after" size well above 0).
-  This version instead checks Wazuh's own `changed_fields` attribute
-  list for "size" directly — if syscheck reports that the file's size
-  was one of the attributes that changed, the rule fires, regardless of
-  the exact byte values involved. This is simpler and more robust than
-  guessing a threshold.
+  Design (v2, corrected after live testing): the first version of this
+  rule tried to approximate a numeric "before < after" comparison using
+  digit-count regexes on size_before/size_after. That approach never
+  fired reliably in testing — FIM's own baseline-timing behavior (see
+  writeup #4) meant the actual before/after pair at the moment of a real
+  truncation rarely lined up with the guessed digit-count thresholds.
 
-  Trade-off / known limitation: this rule fires on ANY size change to
-  auth.log, growth included — not just shrinkage. A single truncation
-  and the routine follow-up write it causes (self-logging) will both
-  show up as separate 100101 alerts. The alert is an investigation
-  signal ("auth.log's size just changed — go look why"), not standalone
-  proof of tampering. Correlating it with surrounding PAM/sudo events
-  (as done in writeup #4) is what turns it into an actual verdict.
+  The fix: stop guessing at numeric comparison entirely. Wazuh's syscheck
+  decoder already exposes which attributes changed as a list
+  (changed_attributes: ["size", "mtime", "md5", ...]). Checking whether
+  "size" is literally in that list — via the <field name="changed_fields">
+  condition below — is exact, not approximate, and matches regardless of
+  which direction the size moved or by how much.
+
+  Field names used (confirmed against a real fired alert's JSON):
+  - "file"          matches the monitored path (regex-anchored to
+                     /var/log/auth.log specifically, so this rule doesn't
+                     fire for every other file under the now-broadened
+                     /var/log FIM scope)
+  - "changed_fields" matches against the changed_attributes list; "size"
+                     here means a size change occurred, in either direction
 
   Prerequisite: /var/log must be added to the agent's <syscheck>
   directories (realtime="yes") and the default `.log$` ignore pattern in
@@ -37,11 +37,22 @@
   Install: place in /var/ossec/etc/rules/local_rules.xml on the MANAGER,
   then `sudo systemctl restart wazuh-manager`.
 
-  Status: deployed and confirmed firing live. Verified against a real
-  controlled truncation of /var/log/auth.log (1502 -> 81 bytes) and the
-  subsequent routine self-logging growth (81 -> 386 bytes) — both
-  transitions triggered this rule, which also demonstrates the
-  "fires on growth too" limitation noted above.
+  Status: CONFIRMED LIVE. Fired as rule 100101, level 12, on a real
+  truncation test against /var/log/auth.log (size_before: 81,
+  size_after: 386 — the post-truncate "self-logging floor" growth
+  described in writeup #4, not the literal 0; see that writeup for why).
+  Alert id 1795118807.45953, firedtimes: 5 at time of confirmation.
+
+  Known limitation (documented, not hidden): this rule matches a size
+  change in EITHER direction, since changed_fields doesn't carry sign
+  or magnitude. Normal log growth (a legitimate new auth.log entry that
+  happens to be large enough to register as a "size" change) can also
+  trigger it. In practice this still has clear triage value — every hit
+  is a real auth.log size event worth a human glance, and the two real
+  attack actions in writeup #4 both pass through it — but it is a
+  broader net than a true "sharp drop only" detector would be. A future
+  refinement would correlate this with the actual byte delta or with
+  nearby sudo/PAM events rather than firing on changed_fields alone.
 -->
 <rule id="100101" level="12">
   <if_sid>550</if_sid>
@@ -51,5 +62,5 @@
   <mitre>
     <id>T1070.002</id>
   </mitre>
-  <group>log_tampering,defense_evasion,</group>
+  <group>local,syslog,sshd,log_tampering,defense_evasion,</group>
 </rule>

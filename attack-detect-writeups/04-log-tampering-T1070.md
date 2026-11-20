@@ -154,6 +154,9 @@ field names (`file`, not `path`; `changed_fields`, not
 
 ## Evidence
 
+![Custom rule 100101 confirmed firing](../screenshots/04-rule-100101-confirmed.png)
+*Rule 100101 live-fired on a real `auth.log` size change — level 12, correct MITRE tag (`T1070.002` / Defense Evasion), `firedtimes: 5` — confirming the custom rule works end-to-end, not just that it loaded without error.*
+
 ![auth.log FIM alert showing a size change](../screenshots/04-auth-log-fim-change.png)
 *Rule 550 firing on `/var/log/auth.log` after FIM was extended to `/var/log` — proof the file is now actually monitored, which it was not by default.*
 

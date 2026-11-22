@@ -23,7 +23,7 @@ A hands-on detection lab where I attack my own systems from Parrot OS, then dete
 | 1 | SSH brute force | T1110, T1110.001 | Detected. Rules 5710, 5712 and 40112 (level 12, success after failures) fired | [Read](attack-detect-writeups/01-ssh-brute-force-T1110.md) |
 | 2 | Network service scan | T1046 | Partial. Only the `-sV` scan left log traces; SYN and NULL scans were invisible to a host agent (gap documented) | [Read](attack-detect-writeups/02-network-scan-T1046.md) |
 | 3 | Local account persistence and privilege escalation | T1136.001, T1098 | Detected. Rules 5901, 5902 and custom rule 100100 (written by me to close a gap) | [Read](attack-detect-writeups/03-local-account-persistence-T1136.md) |
-| 4 | Log tampering / anti-forensics | T1070.002, T1070.003 | Partial. `auth.log` truncation detected live via custom rule 100101; shell history clearing left no trace (confirmed gap, no `auditd` on this host) | [Read](attack-detect-writeups/04-log-tampering-T1070.md) |
+| 4 | Log tampering / anti-forensics | T1070.002, T1070.003 | Mostly detected. `auth.log` tampering confirmed live via custom rule 100101; shell history clearing left no trace (confirmed gap, no `auditd` on this host) | [Read](attack-detect-writeups/04-log-tampering-T1070.md) |
 
 ## Key findings
 

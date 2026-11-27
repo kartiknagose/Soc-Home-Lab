@@ -63,13 +63,6 @@ elastic-cloud/
 └── detection-rule.ndjson    exported custom detection rule
 ```
 
-## Next steps
-
-- Add a network IDS (Suricata) to detect the port scans that the Wazuh agent cannot see (follow-up from writeup 2).
-- Extend rule 100100 to cover the `wheel` group and use a regex for portability across distributions.
-- Tighten rule 100101 to fire only on a size *decrease* (it currently fires on any size change, growth included) and extend it to watch `.bash_history` directly.
-- Install `auditd` to close the confirmed command-level anti-forensics gap (`history -c` and similar).
-
 ## Scope and safety
 
 All attacks target virtual machines I own, on an isolated host-only network with no route to the internet or to other devices. Credentials shown in the writeups are throwaway lab credentials. No real systems, accounts or IP addresses are included.

@@ -42,7 +42,7 @@ A hands-on detection lab where I attack my own systems from Parrot OS, then dete
 
 ## Cloud SIEM module (Elastic)
 
-A second, separate module covers the same SSH brute-force scenario against a **cloud-hosted SIEM** (Elastic Security on Elastic Cloud) instead of the self-hosted Wazuh stack above — log shipping via Elastic Agent, KQL querying in Discover, and a custom detection rule. See [`elastic-cloud-ssh-bruteforce/README.md`](elastic-cloud-ssh-bruteforce/README.md) for the full writeup.
+A second, separate module covers the same SSH brute-force scenario against a **cloud-hosted SIEM** (Elastic Security on Elastic Cloud) instead of the self-hosted Wazuh stack above — log shipping via Elastic Agent, KQL querying in Discover, and a custom detection rule. See [`elastic-cloud/README.md`](elastic-cloud/README.md) for the full writeup.
 
 ## Skills demonstrated
 
@@ -57,7 +57,7 @@ wazuh-lab/
 ├── detection-rules/         custom Wazuh rules
 └── screenshots/             alert evidence
 
-elastic-cloud-ssh-bruteforce/
+elastic-cloud/
 ├── README.md                cloud SIEM module: Elastic Cloud + Elastic Agent + detection rule
 ├── screenshots/
 └── detection-rule.ndjson    exported custom detection rule

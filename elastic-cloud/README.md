@@ -37,13 +37,19 @@ FROM logs-system.auth-default
 ## Detection rule
 
 - **Type:** Custom query
+- **Name:** SSH Brute Force - Repeated Auth Failures
 - **Query:** `event.dataset: "system.auth" and event.outcome: "failure"`
-- **Status:** rule built in Elastic Security; exported definition and fired-alert screenshot to be added here once live-verified against the Hydra run.
+- **Schedule:** runs every 5 minutes, 1-minute additional look-back
+- **MITRE ATT&CK:** Credential Access (TA0006) → Brute Force (T1110)
+- **Status:** live-verified — fired **46 alerts** against a Hydra SSH brute-force run from Parrot OS (see `screenshots/02-rule-execution-46-alerts.png` and `screenshots/03-alerts-trend-confirmed.png`)
+- Rule definition: [`detection-rule.ndjson`](detection-rule.ndjson)
 
 ## Screenshots
 
 - `00-agent-healthy.png` — Elastic Agent enrolled and healthy in Fleet
 - `01-discover-failed-ssh-logins.png` — failed SSH logins visible in Discover, source IP attributed to the Parrot attacker box
+- `02-rule-execution-46-alerts.png` — rule execution log showing a successful run that created 46 alerts
+- `03-alerts-trend-confirmed.png` — Alerts tab confirming the 46 alerts, stacked by event category
 
 ## What I'd improve with more time
 
